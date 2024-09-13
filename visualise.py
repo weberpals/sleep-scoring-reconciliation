@@ -42,19 +42,6 @@ for i, study in enumerate(df['Study']):
         plt.text(i, bottom + height/2, f'{height:.1f}%', ha='center', va='center')
         bottom += height
 
-# Add key insights
-insights = [
-    "Key Insights:",
-    "• Average unanimous agreement: 68.32%",
-    "• Highest unanimous agreement: AWV039 (81.69%)",
-    "• Lowest unanimous agreement: AWV021 (36.28%)",
-    "• AWV021 shows significantly lower agreement",
-    "• No agreement cases generally low (<2%) except AWV021 (9.72%)"
-]
-
-plt.text(1.05, 0.5, '\n'.join(insights), transform=plt.gca().transAxes, 
-         bbox=dict(facecolor='white', alpha=0.8), verticalalignment='center')
-
 # Adjust layout and display
 plt.tight_layout()
 plt.savefig('sleep_scoring_agreement_analysis.png', dpi=300, bbox_inches='tight')
