@@ -119,46 +119,51 @@ def reconcile_study(study_path):
     final_events = []
    
     for event_index, event_bins in enumerate(events):
-        # Get scores for the event
-        # TODO: ensure that logic is reflected 
-        # currently if event by 3 at any point, complete event  is scored as arousal
-        event_scores = {scorer: 0 for scorer in scorers}
-        for bin_time in event_bins:
-            for scorer in scorers:
-                if bin_scores[bin_time][scorer]:
-                    event_scores[scorer] += 1
-
-        scorers_with_arousal = [scorer for scorer, count in event_scores.items() if count > 0]
-        num_scorers_with_arousal = len(scorers_with_arousal)
-
-        # Check if the event is scored by all 3 technicians
-        if num_scorers_with_arousal == 3:
-            description = "Arousal"
-        elif num_scorers_with_arousal == 2:
-            # Check for a unanimous bin within the event
-            unanimous_bin_exists = any(
-                all(bin_scores[bin_time][scorer] == 1 for scorer in scorers)
-                for bin_time in event_bins
-            )
-            if unanimous_bin_exists:
-                description = "Arousal"
-            else:
-                # Need review
-                first_bin_scores = {scorer: 'Arousal' if bin_scores[event_bins[0]][scorer] else 'No Arousal' for scorer in scorers}
-                description = get_detailed_description(first_bin_scores)
+        # Get scores for each bin in the event
+        bin_scores_for_event = {bin_time: {scorer: bin_scores[bin_time][scorer] for scorer in scorers} for bin_time in event_bins}
+        
+        # Find the start and end of the period scored by at least two techs
+        start_two_techs = None
+        end_two_techs = None
+        scored_by_all = False
+        for bin_time, scores in bin_scores_for_event.items():
+            if sum(scores.values()) >= 2:
+                if sum(scores.values()) == 3:
+                    scored_by_all = True
+                if start_two_techs is None:
+                    start_two_techs = bin_time
+                end_two_techs = bin_time
+        
+        if start_two_techs and end_two_techs and scored_by_all:
+            # Add the event scored by at least two techs
+            final_events.append([start_two_techs, end_two_techs, "Arousal"])
+            
+            # Check for periods scored by only one tech
+            one_tech_periods = []
+            current_period = []
+            for bin_time in event_bins:
+                if bin_time < start_two_techs or bin_time > end_two_techs:
+                    if sum(bin_scores_for_event[bin_time].values()) == 1:
+                        current_period.append(bin_time)
+                    elif current_period:
+                        one_tech_periods.append(current_period)
+                        current_period = []
+            if current_period:
+                one_tech_periods.append(current_period)
+            
+            # Add events for periods longer than 5 seconds
+            for period in one_tech_periods:
+                if len(period) > 5:  # More than 5 seconds (each bin is 1 second)
+                    scorer = next(scorer for scorer, score in bin_scores_for_event[period[0]].items() if score == 1)
+                    description = get_detailed_description({scorer: 'Arousal', **{s: 'No Arousal' for s in scorers if s != scorer}})
+                    final_events.append([period[0], period[-1], description])
         else:
-            # Need review
-            first_bin_scores = {scorer: 'Arousal' if bin_scores[event_bins[0]][scorer] else 'No Arousal' for scorer in scorers}
-            description = get_detailed_description(first_bin_scores)
+            # If no period is scored by at least two techs, mark the entire event for review
+            description = get_detailed_description({scorer: 'Arousal' if any(bin_scores_for_event[bin_time][scorer] for bin_time in event_bins) else 'No Arousal' for scorer in scorers})
+            final_events.append([event_bins[0], event_bins[-1], description])
 
-        # Add the event to final_events
-        start = event_bins[0]
-        end = event_bins[-1]
-        final_events.append([start, end, description])
-
-        print(f"Processed event {event_index + 1}: {start} - {end}, Description: {description}")
-
-
+        print(f"Processed event {event_index + 1}: {event_bins[0]} - {event_bins[-1]}")
+    
     print(f"Final number of events: {len(final_events)}")
     return final_events, study_start_time
 
