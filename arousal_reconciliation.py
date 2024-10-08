@@ -177,7 +177,7 @@ def process_study(study_path, output_dir):
     final_events, study_start_time = reconcile_study(study_path)
 
     with open(output_csv, 'w', newline='') as csvfile:
-        csvwriter = csv.writer(csvfile)
+        csvwriter = csv.writer(csvfile, delimiter='\t')
         csvwriter.writerow(['Onset', 'Duration', 'Description'])
 
         for idx, (start, end, description) in enumerate(final_events):
