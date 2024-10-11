@@ -1,0 +1,21 @@
+# Ignore all files in the data_all directory
+/data_all/
+
+# Ignore all files in the output directory
+/output/
+
+# Ignore common data file extensions
+*.csv
+*.txt
+*.xlsx
+*.xls
+*.json
+*.xml
+
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+
+# Ignore system files
+.DS_Store
+Thumbs.db
