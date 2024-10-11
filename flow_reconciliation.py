@@ -156,11 +156,11 @@ def reconcile_study(study_path):
             # Add events for periods longer than 5 seconds
             for period in one_tech_periods:
                 if len(period) > 5:  # More than 5 seconds (each bin is 1 second)
-                    description = get_detailed_description({scorer: scores['event_type'] if scores['score'] == 1 else 'No Event' for scorer, scores in bin_scores_for_event[period[0]].items()})
+                    description = get_detailed_description({scorer: scores['event_type'] if scores['score'] == 1 else None for scorer, scores in bin_scores_for_event[period[0]].items()})
                     final_events.append([period[0], period[-1], description])
         else:
             # If no period is scored by at least two techs with matching event types, mark the entire event for review
-            description = get_detailed_description({scorer: scores['event_type'] if any(bin_scores_for_event[bin_time][scorer]['score'] for bin_time in event_bins) else 'No Event' for scorer, scores in bin_scores_for_event[event_bins[0]].items()})
+            description = get_detailed_description({scorer: scores['event_type'] if any(bin_scores_for_event[bin_time][scorer]['score'] for bin_time in event_bins) else None for scorer, scores in bin_scores_for_event[event_bins[0]].items()})
             final_events.append([event_bins[0], event_bins[-1], description])
 
         print(f"Processed event {event_index + 1}: {event_bins[0]} - {event_bins[-1]}")
@@ -169,7 +169,7 @@ def reconcile_study(study_path):
     return final_events, study_start_time
 
 def get_detailed_description(scores):
-    return "Review: " + ", ".join([f"{scorer}={score}" for scorer, score in scores.items()])
+    return "Review: " + ", ".join([str(score) if score is not None else '-' for score in scores.values()])
 
 def process_study(study_path, output_dir):
     study_name = os.path.basename(study_path)
@@ -181,11 +181,12 @@ def process_study(study_path, output_dir):
         csvwriter = csv.writer(csvfile, delimiter='\t')
         csvwriter.writerow(['Onset', 'Duration', 'Description'])
 
-        for idx, (start, end, description) in enumerate(final_events):
+        for start, end, description in final_events:
             onset = max(0, int((start - study_start_time).total_seconds()))
             duration = int((end - start).total_seconds()) + 1
-            event_number = idx + 1
-            csvwriter.writerow([onset, duration, f"E{event_number}: {description}"])
+            
+            # No need to modify the description here, as it's already in the correct format
+            csvwriter.writerow([onset, duration, description])
 
     print(f"Processed study: {study_name}")
     return output_csv

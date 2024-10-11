@@ -48,15 +48,6 @@ def parse_event_file(file_path):
     print(f"\nTotal events processed: {len(events)}")
     return events, start_time
 
-def create_bins(events, bin_size=timedelta(seconds=1)):
-    bins = set()
-    for start, end, _ in events:
-        current = start
-        while current <= end:
-            bins.add(current.replace(microsecond=0))
-            current += bin_size
-    return bins
-
 def reconcile_study(study_path):
     scorers = ['LS', 'ES', 'MS']
     all_events = {}
@@ -66,7 +57,7 @@ def reconcile_study(study_path):
 
     # Parse events from each scorer
     for scorer in scorers:
-        file_path = os.path.join(study_path, scorer, 'Classification Arousals.txt')
+        file_path = os.path.join(study_path, scorer, 'Flow Events.txt')
         if not os.path.exists(file_path):
             print(f"File not found for scorer {scorer}: {file_path}")
             continue  # Skip if the file doesn't exist
@@ -88,24 +79,25 @@ def reconcile_study(study_path):
     
     print(f"Created {len(all_bins)} bins from {study_start_time} to {last_event_end}")
 
-    # Create a mapping from bin_time to scores
+    # Create a mapping from bin_time to scores and event types
     bin_scores = {}
     for bin_time in all_bins:
-        bin_scores[bin_time] = {scorer: 0 for scorer in scorers}
+        bin_scores[bin_time] = {scorer: {'score': 0, 'event_type': None} for scorer in scorers}
     for scorer, events in all_events.items():
-        for start, end, _ in events:
+        for start, end, event_type in events:
             current = start
             while current <= end:
                 bin_time = current.replace(microsecond=0)
                 if bin_time in bin_scores:
-                    bin_scores[bin_time][scorer] = 1
+                    bin_scores[bin_time][scorer] = {'score': 1, 'event_type': event_type}
                 current += timedelta(seconds=1)
 
     # Group bins into contiguous events
     events = []
     current_event_bins = []
     for i, bin_time in enumerate(all_bins):
-        score_sum = sum(bin_scores[bin_time].values())
+
+        score_sum = sum(bin_scores[bin_time][scorer]['score'] for scorer in scorers)
         if score_sum > 0:
             current_event_bins.append(bin_time)
         else:
@@ -115,35 +107,45 @@ def reconcile_study(study_path):
     if current_event_bins:
         events.append(current_event_bins)
 
-
     final_events = []
    
     for event_index, event_bins in enumerate(events):
-        # Get scores for each bin in the event
+        # Get scores and event types for each bin in the event
         bin_scores_for_event = {bin_time: {scorer: bin_scores[bin_time][scorer] for scorer in scorers} for bin_time in event_bins}
         
-        # Find the start and end of the period scored by at least two techs
+        # Find the start and end of the period scored by at least two techs with matching event types
         start_two_techs = None
         end_two_techs = None
         scored_by_all = False
+        event_type = None
         for bin_time, scores in bin_scores_for_event.items():
-            if sum(scores.values()) >= 2:
-                if sum(scores.values()) == 3:
+            # Get all non-None event types
+            current_event_types = [s['event_type'] for s in scores.values() if s['score'] == 1 and s['event_type'] is not None]
+            # Count occurrences of each event type
+            event_type_counts = {et: current_event_types.count(et) for et in set(current_event_types)}
+            # Find the most common event type 
+            matching_event_type = max(event_type_counts, key=event_type_counts.get, default=None)
+            matching_scores = event_type_counts.get(matching_event_type, 0) if matching_event_type else 0
+
+            if matching_scores >= 2:
+                if matching_scores == 3:
                     scored_by_all = True
                 if start_two_techs is None:
                     start_two_techs = bin_time
+                    event_type = matching_event_type
                 end_two_techs = bin_time
         
         if start_two_techs and end_two_techs and scored_by_all:
-            # Add the event scored by at least two techs
-            final_events.append([start_two_techs, end_two_techs, "Arousal"])
+            # Add the event scored by at least two techs with matching event types
+            final_events.append([start_two_techs, end_two_techs, event_type])
             
-            # Check for periods scored by only one tech
+            # Check for periods scored by only one tech or with different event types
             one_tech_periods = []
             current_period = []
             for bin_time in event_bins:
                 if bin_time < start_two_techs or bin_time > end_two_techs:
-                    if sum(bin_scores_for_event[bin_time].values()) == 1:
+                    scores = bin_scores_for_event[bin_time]
+                    if sum(s['score'] for s in scores.values()) == 1 or len(set(s['event_type'] for s in scores.values() if s['score'] == 1)) > 1:
                         current_period.append(bin_time)
                     elif current_period:
                         one_tech_periods.append(current_period)
@@ -154,12 +156,11 @@ def reconcile_study(study_path):
             # Add events for periods longer than 5 seconds
             for period in one_tech_periods:
                 if len(period) > 5:  # More than 5 seconds (each bin is 1 second)
-                    scorer = next(scorer for scorer, score in bin_scores_for_event[period[0]].items() if score == 1)
-                    description = get_detailed_description({scorer: 'Arousal', **{s: 'No Arousal' for s in scorers if s != scorer}})
+                    description = get_detailed_description({scorer: scores['event_type'] if scores['score'] == 1 else 'No Event' for scorer, scores in bin_scores_for_event[period[0]].items()})
                     final_events.append([period[0], period[-1], description])
         else:
-            # If no period is scored by at least two techs, mark the entire event for review
-            description = get_detailed_description({scorer: 'Arousal' if any(bin_scores_for_event[bin_time][scorer] for bin_time in event_bins) else 'No Arousal' for scorer in scorers})
+            # If no period is scored by at least two techs with matching event types, mark the entire event for review
+            description = get_detailed_description({scorer: scores['event_type'] if any(bin_scores_for_event[bin_time][scorer]['score'] for bin_time in event_bins) else 'No Event' for scorer, scores in bin_scores_for_event[event_bins[0]].items()})
             final_events.append([event_bins[0], event_bins[-1], description])
 
         print(f"Processed event {event_index + 1}: {event_bins[0]} - {event_bins[-1]}")
@@ -168,11 +169,11 @@ def reconcile_study(study_path):
     return final_events, study_start_time
 
 def get_detailed_description(scores):
-    return "Review: " + ", ".join([f"{scorer}={score}" for scorer, score in scores.items()])
+    return "Review: Flow"
 
 def process_study(study_path, output_dir):
     study_name = os.path.basename(study_path)
-    output_csv = os.path.join(output_dir, f"{study_name}_event_reconciliation.csv")
+    output_csv = os.path.join(output_dir, f"{study_name}_flow_reconciliation_no_labels.csv")
 
     final_events, study_start_time = reconcile_study(study_path)
 
@@ -184,7 +185,7 @@ def process_study(study_path, output_dir):
             onset = max(0, int((start - study_start_time).total_seconds()))
             duration = int((end - start).total_seconds()) + 1
             event_number = idx + 1
-            csvwriter.writerow([onset, duration, f"E{event_number}: {description}"])
+            csvwriter.writerow([onset, duration, description])
 
     print(f"Processed study: {study_name}")
     return output_csv
@@ -206,5 +207,5 @@ def process_all_studies(data_path, output_dir):
 
 # Usage
 data_path = '../data_all'
-output_dir = './output/event_reconciliation_output'
+output_dir = './output/flow_reconciliation_output'
 processed_files = process_all_studies(data_path, output_dir)

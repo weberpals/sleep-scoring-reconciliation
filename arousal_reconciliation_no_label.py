@@ -168,11 +168,11 @@ def reconcile_study(study_path):
     return final_events, study_start_time
 
 def get_detailed_description(scores):
-    return "Review: " + ", ".join([f"{scorer}={score}" for scorer, score in scores.items()])
+    return "Review: Arousal"
 
 def process_study(study_path, output_dir):
     study_name = os.path.basename(study_path)
-    output_csv = os.path.join(output_dir, f"{study_name}_event_reconciliation.csv")
+    output_csv = os.path.join(output_dir, f"{study_name}_event_reconciliation_no_label.csv")
 
     final_events, study_start_time = reconcile_study(study_path)
 
@@ -180,11 +180,10 @@ def process_study(study_path, output_dir):
         csvwriter = csv.writer(csvfile, delimiter='\t')
         csvwriter.writerow(['Onset', 'Duration', 'Description'])
 
-        for idx, (start, end, description) in enumerate(final_events):
+        for start, end, description in final_events:
             onset = max(0, int((start - study_start_time).total_seconds()))
             duration = int((end - start).total_seconds()) + 1
-            event_number = idx + 1
-            csvwriter.writerow([onset, duration, f"E{event_number}: {description}"])
+            csvwriter.writerow([onset, duration, description])
 
     print(f"Processed study: {study_name}")
     return output_csv
