@@ -43,10 +43,14 @@ def create_bins(events, bin_size=timedelta(seconds=1)):
 def score_bins(events, bins):
     scored_bins = {b: 0 for b in bins}
     for start, end, _ in events:
-        for b in bins:
-            if start <= b < end:
-                scored_bins[b] += 1
+        current = start.replace(microsecond=0)
+        end = end.replace(microsecond=0)
+        while current < end:
+            scored_bins[current] = 1
+            current += timedelta(seconds=1)
     return scored_bins
+
+
 
 def reconcile_study(study_path):
     scorers = ['LS', 'ES', 'MS']
@@ -76,9 +80,13 @@ def reconcile_study(study_path):
         # Check if the previous and following bins exist and have a score of 3
         prev_bin_time = bin_time - timedelta(seconds=1)
         next_bin_time = bin_time + timedelta(seconds=1)
-        prev_bin_unanimous = prev_bin_time in all_bins and all(scored_bins[scorer].get(prev_bin_time, 0) == 3 for scorer in scorers)
-        next_bin_unanimous = next_bin_time in all_bins and all(scored_bins[scorer].get(next_bin_time, 0) == 3 for scorer in scorers)
-        
+
+        def is_unanimous(bin_time):
+            return sum(scored_bins[scorer].get(bin_time, 0) for scorer in scorers) == 3
+
+        prev_bin_unanimous = prev_bin_time in all_bins and is_unanimous(prev_bin_time)
+        next_bin_unanimous = next_bin_time in all_bins and is_unanimous(next_bin_time)
+
         # Determine if reconciliation is needed based on score count and neighboring bins
         if score_count == 0:
             # No scorers marked this bin, consider it successfully reconciled
@@ -172,7 +180,7 @@ def create_summary_graph(study_summaries):
                 ha='center', va='bottom', rotation=90)
 
     plt.tight_layout()
-    plt.savefig('study_summary.png')
+    plt.savefig('study_summary_v2.png')
     plt.close()
 
     print("Graphical summary saved as 'study_summary.png'")
