@@ -142,8 +142,22 @@ def reconcile_study(study_path):
                 end_two_techs = bin_time
         
         if start_two_techs and end_two_techs and scored_by_all:
+            # Find the exact start and end times
+            exact_start = min((event[0] for scorer, events in all_events.items() 
+                               for event in events if event[0].replace(microsecond=0) == start_two_techs),
+                              key=time_only,
+                              default=start_two_techs)
+            
+            end_events = [event[1] for scorer, events in all_events.items() 
+                          for event in events if event[1].replace(microsecond=0) == end_two_techs]
+            
+            exact_end = max(end_events, key=time_only, default=end_two_techs)
+            
+            if exact_end == end_two_techs:
+                print(f"Info: No exact end time found for event {event_index}. Using bin time: {exact_end}")
+            
             # Add the event scored by at least two techs
-            final_events.append([exact_start, end_two_techs, "Arousal"])
+            final_events.append([exact_start, exact_end, "Arousal"])
             
             # Check for periods scored by only one tech
             one_tech_period_before = []
@@ -157,7 +171,8 @@ def reconcile_study(study_path):
                             scorer = next(scorer for scorer, score in bin_scores_for_event[bin_time].items() if score == 1)
                             exact_start = min((event[0] for scorer, events in all_events.items() 
                                for event in events if event[0].replace(microsecond=0) == bin_time),
-                              default=bin_time)
+                              default=bin_time,
+                              key=time_only)
                             one_tech_period_before.append((exact_start, bin_time))
                         else:
                             one_tech_period_before.append((bin_time, bin_time))
@@ -168,7 +183,8 @@ def reconcile_study(study_path):
                             scorer = next(scorer for scorer, score in bin_scores_for_event[bin_time].items() if score == 1)
                             exact_start = min((event[0] for scorer, events in all_events.items() 
                                for event in events if event[0].replace(microsecond=0) == bin_time),
-                              default=bin_time)
+                              default=bin_time,
+                              key=time_only)
                             one_tech_period_after.append((exact_start, bin_time))
                         else:
                             one_tech_period_after.append((bin_time, bin_time))
@@ -181,12 +197,16 @@ def reconcile_study(study_path):
                     final_events.append([period[0][0], period[-1][1], description])
         else:
             # If no period is scored by at least two techs, mark the entire event for review
-            # try to find the exact start time from the original events otherwise use bin time
             exact_start = min((event[0] for scorer, events in all_events.items() 
                                for event in events if event[0].replace(microsecond=0) == event_bins[0]),
-                              default=event_bins[0])
+                              default=event_bins[0],
+                              key=time_only)
+            exact_end = max((event[1] for scorer, events in all_events.items() 
+                             for event in events if event[1].replace(microsecond=0) == event_bins[-1]),
+                            default=event_bins[-1],
+                            key=time_only)
             description = get_detailed_description({scorer: 'Arousal' if any(bin_scores_for_event[bin_time][scorer] for bin_time in event_bins) else 'No Arousal' for scorer in scorers})
-            final_events.append([exact_start, event_bins[-1], description])
+            final_events.append([exact_start, exact_end, description])
 
         print(f"Processed event {event_index + 1}: {event_bins[0]} - {event_bins[-1]}")
     
@@ -208,8 +228,8 @@ def process_study(study_path, output_dir):
 
         for start, end, description in final_events:
             onset = start.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
-            duration = int((end - start).total_seconds()) + 1
-            csvwriter.writerow([onset, duration, description])
+            duration = (end - start).total_seconds()
+            csvwriter.writerow([onset, f"{duration:.2f}", description])
 
     print(f"Processed study: {study_name}")
     return output_csv
@@ -228,6 +248,10 @@ def process_all_studies(data_path, output_dir):
 
     print(f"Processed {len(processed_files)} studies. CSV files created in: {output_dir}")
     return processed_files
+
+# Helper function to compare only time components
+def time_only(dt):
+    return dt.time()
 
 # Usage
 data_path = '../data_all'
