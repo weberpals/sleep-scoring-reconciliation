@@ -144,31 +144,40 @@ def reconcile_study(study_path):
             final_events.append([exact_start, end_two_techs, event_type])
             
             # Check for periods scored by only one tech or with different event types
-            one_tech_periods = []
-            current_period = []
+            one_tech_period_before = []
+            one_tech_period_after = []
+
             for bin_time in event_bins:
-                if bin_time < start_two_techs or bin_time > end_two_techs:
+                if bin_time < start_two_techs:
                     scores = bin_scores_for_event[bin_time]
                     if sum(s['score'] for s in scores.values()) == 1 or len(set(s['event_type'] for s in scores.values() if s['score'] == 1)) > 1:
-                        if not current_period:
+                        if not one_tech_period_before:
                             # Find the exact start time for this period
                             scorer = next(scorer for scorer, s in scores.items() if s['score'] == 1)
-                            exact_period_start = min((event[0] for scorer, events in all_events.items() 
+                            exact_start = min((event[0] for scorer, events in all_events.items() 
                                for event in events if event[0].replace(microsecond=0) == bin_time),
                               default=bin_time)
-                            current_period.append((exact_period_start, bin_time))
+                            one_tech_period_before.append((exact_start, bin_time))
                         else:
-                            current_period.append((bin_time, bin_time))
-                    elif current_period:
-                        one_tech_periods.append(current_period)
-                        current_period = []
-            if current_period:
-                one_tech_periods.append(current_period)
-            
+                            one_tech_period_before.append((bin_time, bin_time))
+                elif bin_time > end_two_techs:
+                    scores = bin_scores_for_event[bin_time]
+                    if sum(s['score'] for s in scores.values()) == 1 or len(set(s['event_type'] for s in scores.values() if s['score'] == 1)) > 1:
+                        if not one_tech_period_after:
+                            # Find the exact start time for this period
+                            scorer = next(scorer for scorer, s in scores.items() if s['score'] == 1)
+                            exact_start = min((event[0] for scorer, events in all_events.items() 
+                               for event in events if event[0].replace(microsecond=0) == bin_time),
+                              default=bin_time)
+                            one_tech_period_after.append((exact_start, bin_time))
+                        else:
+                            one_tech_period_after.append((bin_time, bin_time))
+
             # Add events for periods longer than 5 seconds
-            for period in one_tech_periods:
-                if len(period) > 5:  # More than 5 seconds (each bin is 1 second)
-                    description = get_detailed_description({scorer: scores['event_type'] if scores['score'] == 1 else None for scorer, scores in bin_scores_for_event[period[0][1]].items()})
+            for period in [one_tech_period_before, one_tech_period_after]:
+                if period and len(period) > 5:  # More than 5 seconds
+                    scores = bin_scores_for_event[period[0][1]]
+                    description = get_detailed_description({scorer: scores[scorer]['event_type'] if scores[scorer]['score'] == 1 else None for scorer in scorers})
                     final_events.append([period[0][0], period[-1][1], description])
         else:
             # If no period is scored by at least two techs with matching event types, mark the entire event for review
