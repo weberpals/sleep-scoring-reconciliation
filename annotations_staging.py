@@ -34,7 +34,10 @@ def analyze_agreement_and_generate_simplified_annotations(file_path, output_dir)
     
     # Check if all required columns were found
     if not (len(es_cols) == 1 and len(ms_cols) == 1 and len(ls_cols) == 1):
-        raise ValueError(f"Missing required scorer columns: ES={es_cols}, MS={ms_cols}, LS={ls_cols}")
+        ls_cols = [col for col in df.columns if 'AS - ls' in col]
+
+        if not (len(es_cols) == 1 and len(ms_cols) == 1 and len(ls_cols) == 1):
+            raise ValueError(f"Missing required scorer columns: ES={es_cols}, MS={ms_cols}, LS={ls_cols}")
     
     # Select the columns
     df_scores = df[[es_cols[0], ms_cols[0], ls_cols[0]]]
