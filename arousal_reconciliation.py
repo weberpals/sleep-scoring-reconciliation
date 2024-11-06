@@ -57,7 +57,8 @@ def create_bins(events, bin_size=timedelta(seconds=1)):
             current += bin_size
     return bins
 
-def reconcile_study(study_path):
+def reconcile_study(study_path, output_dir):
+    error_log = os.path.join(output_dir, "error_log.txt")
     scorers = ['LS', 'ES', 'MS']
     all_events = {}
     study_start_time = None
@@ -65,21 +66,44 @@ def reconcile_study(study_path):
     print(f"Processing study: {study_path}")
 
     # Parse events from each scorer
+    event_counts = []  # Track number of events per scorer
     for scorer in scorers:
         file_path = os.path.join(study_path, scorer, 'Classification Arousals.txt')
         if not os.path.exists(file_path):
             print(f"File not found for scorer {scorer}: {file_path}")
-            continue  # Skip if the file doesn't exist
+            event_counts.append(0)
+            continue
         events, start_time = parse_event_file(file_path)
+        event_counts.append(len(events))
+        if len(events) == 0:
+            with open(error_log, 'a') as f:
+                f.write(f"{datetime.now()}: WARNING - No events found for scorer {scorer} in study {study_path}\n")
+            continue
         all_events[scorer] = events
         if study_start_time is None or start_time < study_start_time:
             study_start_time = start_time
         print(f"Parsed {len(events)} events for scorer {scorer}")
 
+    # Check if we have any events at all
+    if not all_events:
+        raise ValueError(f"No valid event files found for any scorer. Event counts: {dict(zip(scorers, event_counts))}")
+
+    if sum(event_counts) == 0:
+        raise ValueError(f"No events found in any scorer files. Event counts: {dict(zip(scorers, event_counts))}")
+
+    # Get all bins where any scorer has an event - with error handling
+    try:
+        last_event_end = max(max(event[1] for event in events) for events in all_events.values())
+    except ValueError:
+        raise ValueError("No events found in any of the parsed files")
+
+    # If study start time and last event are more than 2 days apart, raise an error
+    if (last_event_end - study_start_time).days > 2:
+        raise ValueError(f"Study start time and last event are more than 2 days apart: {study_start_time} to {last_event_end}")
+
     print(f"Study start time: {study_start_time}")
 
     # Get all bins where any scorer has an event
-    last_event_end = max(max(event[1] for event in events) for events in all_events.values())
     all_bins = []
     current_time = study_start_time
     while current_time <= last_event_end:
@@ -219,35 +243,57 @@ def get_detailed_description(scores):
 def process_study(study_path, output_dir):
     study_name = os.path.basename(study_path)
     output_csv = os.path.join(output_dir, f"{study_name}_arousal_reconciliation_no_label.csv")
+    error_log = os.path.join(output_dir, "error_log.txt")
 
-    final_events, study_start_time = reconcile_study(study_path)
+    try:
+        final_events, study_start_time = reconcile_study(study_path, output_dir)
 
-    with open(output_csv, 'w', newline='') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter='\t')
-        csvwriter.writerow(['Onset', 'Duration', 'Description'])
+        with open(output_csv, 'w', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter='\t')
+            csvwriter.writerow(['Onset', 'Duration', 'Description'])
 
-        for start, end, description in final_events:
-            onset = start.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
-            duration = (end - start).total_seconds()
-            csvwriter.writerow([onset, f"{duration:.2f}", description])
+            for start, end, description in final_events:
+                onset = start.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+                duration = (end - start).total_seconds()
+                csvwriter.writerow([onset, f"{duration:.2f}", description])
 
-    print(f"Processed study: {study_name}")
-    return output_csv
+        print(f"Successfully processed study: {study_name}")
+        return output_csv, None
+    except Exception as e:
+        error_message = f"Error processing {study_name}: {str(e)}"
+        print(error_message)
+        with open(error_log, 'a') as f:
+            f.write(f"{datetime.now()}: {error_message}\n")
+        return None, error_message
 
 def process_all_studies(data_path, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     processed_files = []
+    failed_studies = []
 
     for study in os.listdir(data_path):
         study_path = os.path.join(data_path, study)
         if os.path.isdir(study_path):
-            output_csv = process_study(study_path, output_dir)
-            processed_files.append(output_csv)
+            output_csv, error = process_study(study_path, output_dir)
+            if output_csv:
+                processed_files.append(output_csv)
+            if error:
+                failed_studies.append((study, error))
 
-    print(f"Processed {len(processed_files)} studies. CSV files created in: {output_dir}")
-    return processed_files
+    # Print summary
+    print(f"\nProcessing Summary:")
+    print(f"Successfully processed: {len(processed_files)} studies")
+    print(f"Failed: {len(failed_studies)} studies")
+    if failed_studies:
+        print("\nFailed studies:")
+        for study, error in failed_studies:
+            print(f"- {study}: {error}")
+    print(f"\nCSV files created in: {output_dir}")
+    print(f"See error_log.txt for detailed error information")
+
+    return processed_files, failed_studies
 
 # Helper function to compare only time components
 def time_only(dt):
@@ -255,5 +301,5 @@ def time_only(dt):
 
 # Usage
 data_path = '../data_all'
-output_dir = './output/event_reconciliation_output'
-processed_files = process_all_studies(data_path, output_dir)
+output_dir = './output/arousal_reconciliation_output'
+processed_files, failed_studies = process_all_studies(data_path, output_dir)

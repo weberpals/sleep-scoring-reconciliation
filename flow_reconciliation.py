@@ -48,7 +48,8 @@ def parse_event_file(file_path):
     print(f"\nTotal events processed: {len(events)}")
     return events, start_time
 
-def reconcile_study(study_path):
+def reconcile_study(study_path, output_dir):
+    error_log = os.path.join(output_dir, "error_log.txt")
     scorers = ['LS', 'ES', 'MS']
     all_events = {}
     study_start_time = None
@@ -56,21 +57,39 @@ def reconcile_study(study_path):
     print(f"Processing study: {study_path}")
 
     # Parse events from each scorer
+    event_counts = []  # Track number of events per scorer
     for scorer in scorers:
         file_path = os.path.join(study_path, scorer, 'Flow Events.txt')
         if not os.path.exists(file_path):
             print(f"File not found for scorer {scorer}: {file_path}")
+            event_counts.append(0)
             continue  # Skip if the file doesn't exist
         events, start_time = parse_event_file(file_path)
+        event_counts.append(len(events))
+        if len(events) == 0:
+            with open(error_log, 'a') as f:
+                f.write(f"{datetime.now()}: WARNING - No events found for scorer {scorer}  in study {study_path} \n")
+            continue
         all_events[scorer] = events
         if study_start_time is None or start_time < study_start_time:
             study_start_time = start_time
         print(f"Parsed {len(events)} events for scorer {scorer}")
 
+    # Check if we have any events at all
+    if not all_events:
+        raise ValueError(f"No valid event files found for any scorer. Event counts: {dict(zip(scorers, event_counts))}")
+
+    if sum(event_counts) == 0:
+        raise ValueError(f"No events found in any scorer files. Event counts: {dict(zip(scorers, event_counts))}")
+
     print(f"Study start time: {study_start_time}")
 
-    # Get all bins where any scorer has an event
-    last_event_end = max(max(event[1] for event in events) for events in all_events.values())
+    # Get all bins where any scorer has an event - with error handling
+    try:
+        last_event_end = max(max(event[1] for event in events) for events in all_events.values())
+    except ValueError:
+        raise ValueError("No events found in any of the parsed files")
+
     all_bins = []
 
     # If study start time and last event are more than 2 days apart, raise an error
@@ -225,7 +244,7 @@ def process_study(study_path, output_dir):
     error_log = os.path.join(output_dir, "error_log.txt")
 
     try:
-        final_events, study_start_time = reconcile_study(study_path)
+        final_events, study_start_time = reconcile_study(study_path, output_dir)
 
         with open(output_csv, 'w', newline='') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter='\t')

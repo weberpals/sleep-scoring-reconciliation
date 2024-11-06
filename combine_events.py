@@ -38,7 +38,7 @@ def process_all_files():
     base_dir = 'output'
     folders = {
         'flow': 'flow_reconciliation_output',
-        'event': 'event_reconciliation_output'
+        'event': 'arousal_reconciliation_output'
     }
     
     # Create the combined folder if it doesn't exist
