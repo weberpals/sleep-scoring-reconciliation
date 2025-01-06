@@ -134,8 +134,8 @@ def print_results(results):
         print(f"75th percentile: {percentages[q3_idx]:.2f}%")
 
 # Usage
-data_dir = '../data_all'  
-output_dir = './output/staging_annotation'  
+data_dir = '../../../data_all'  
+output_dir = '../../output/staging_annotation'  
 
 results = process_all_files(data_dir, output_dir)
 print_results(results)
