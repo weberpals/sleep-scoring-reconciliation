@@ -11,7 +11,8 @@ This tool automates the initial reconciliation of sleep scoring data by:
 4. Generating analysis reports and visualizations
 
 ## Project Structure
-sleep-score-reconciliation/
+```
+.
 ├── src/
 │ ├── analysis/
 │ │ └── event_reconciliation_analysis.py
@@ -32,7 +33,7 @@ sleep-score-reconciliation/
 ├── pyproject.toml
 ├── README.md
 └── .gitignore
-
+```
 
 ## Features
 
