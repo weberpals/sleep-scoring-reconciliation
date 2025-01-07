@@ -11,6 +11,7 @@
 *.xls
 *.json
 *.xml
+*.png
 
 # Ignore Python cache files
 __pycache__/
