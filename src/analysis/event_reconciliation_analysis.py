@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 
 def analyze_staging_reconciliation(subject_id):
     """Analyze staging reconciliation for a given subject"""
-    # Adjust path to match actual file location
+    
     stage_file = f'../../output/staging_annotation/{subject_id}_stage_annotations.csv'
     if not os.path.exists(stage_file):
-        print(f"File not found: {stage_file}")  # Debug print
+        print(f"File not found: {stage_file}")  
         return None
     
     df = pd.read_csv(stage_file, delimiter='\t')

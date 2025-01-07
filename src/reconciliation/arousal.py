@@ -18,7 +18,7 @@ def parse_event_file(file_path):
     else:
         raise ValueError("Start Time not found in the file.")
 
-    # Adjusted regular expression to handle concatenated events
+    # Handle concatenated events
     event_pattern = r'(\d{2}:\d{2}:\d{2},\d{3}-\d{2}:\d{2}:\d{2},\d{3});\s*(\d+);\s*(.*?)(?=(\d{2}:\d{2}:\d{2},\d{3}-|$))'
     matches = re.finditer(event_pattern, content, re.DOTALL)
 
