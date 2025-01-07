@@ -35,12 +35,6 @@ def analyze_staging_reconciliation(subject_id):
         **stage_stats
     }
     
-    # Debug print
-    print(f"\nAnalyzing {subject_id}:")
-    print(f"Total epochs: {total_epochs}")
-    print(f"Needs review: {needs_review}")
-    print(f"Auto reconciled: {auto_reconciled}")
-    print(f"Stage stats: {stage_stats}")
     
     return results
 
@@ -104,24 +98,21 @@ def analyze_reconciliation_files():
             sns.histplot(data=demo_df, x='Auto_Rate', bins=20)
             plt.title(f'{data_type}: Auto-reconciliation Rate Distribution')
             
-            # 2. Auto-reconciliation rate by age and sex
+            # 2. Auto-reconciliation rate by age
             plt.subplot(2, 2, 2)
-            sns.scatterplot(data=demo_df, x='Age', y='Auto_Rate', 
-                          hue='Sex', style='Sex', s=100)
-            plt.title(f'{data_type}: Auto-reconciliation by Age and Sex')
+            sns.regplot(data=demo_df, x='Age', y='Auto_Rate', scatter_kws={'s': 100}, line_kws={'color': 'blue'})
+            plt.title(f'{data_type}: Auto-reconciliation by Age')
             
-            # 3. Auto-reconciliation rate by race
+            # 3. Auto-reconciliation rate by sex
             plt.subplot(2, 2, 3)
+            sns.boxplot(data=demo_df, x='Sex', y='Auto_Rate')
+            plt.title(f'{data_type}: Auto-reconciliation by Sex')
+            
+            # 4. Auto-reconciliation rate by race
+            plt.subplot(2, 2, 4)
             sns.boxplot(data=demo_df, x='Race', y='Auto_Rate')
             plt.xticks(rotation=45, ha='right')
             plt.title(f'{data_type}: Auto-reconciliation by Race')
-            
-            # 4. For staging data: reconciliation rate by sleep stage
-            if data_type == 'Staging':
-                plt.subplot(2, 2, 4)
-                stage_data = demo_df[['Wake_pct', 'N1_pct', 'N2_pct', 'N3_pct', 'Rem_pct']].mean()
-                plt.pie(stage_data, labels=stage_data.index, autopct='%1.1f%%')
-                plt.title('Sleep Stage Distribution')
             
             plt.tight_layout()
             plt.savefig(f'{data_type.lower()}_reconciliation_analysis.png')
