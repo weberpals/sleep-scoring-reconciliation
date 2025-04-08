@@ -236,7 +236,9 @@ def reconcile_study(study_path, output_dir):
     return final_events, study_start_time
 
 def get_detailed_description(scores):
-    return "Review: " + ", ".join([str(score) if score is not None else '-' for score in scores.values()])
+    # Get the first non-None event type and cut it to the first 5 characters
+    event_type = next((score for score in scores.values() if score is not None), "Review")
+    return f"Review: {event_type[:5]}"
 
 def process_study(study_path, output_dir):
     study_name = os.path.basename(study_path)
@@ -297,7 +299,7 @@ def time_only(dt):
     return dt.time()
 
 # Usage
-data_path = '../../../data_all'
+data_path = '../../data_all'
 output_dir = '../../output/flow_reconciliation_output'
 processed_files, failed_studies = process_all_studies(data_path, output_dir)
 
