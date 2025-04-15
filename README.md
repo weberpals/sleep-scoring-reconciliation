@@ -70,7 +70,12 @@ This tool automates the initial reconciliation of sleep scoring data by:
    poetry run python src/reconciliation/staging.py
    ```
 
-3. **Generate Analysis**
+
+
+3. **Merge into one Annotation file**
+
+
+4. **Generate Analysis**
    ```bash
    poetry run python src/analysis/event_reconciliation_analysis.py
    ```

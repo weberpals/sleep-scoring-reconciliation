@@ -24,6 +24,11 @@ def combine_and_sort_events(files):
                     stage_counter += 1
         all_events.extend(events)
     
+    # Check if all events have the 'Onset' key
+    if not all('Onset' in event for event in all_events):
+        print(f"Skipping file(s) due to missing 'Onset' key in events.")
+        return []
+
     return sorted(all_events, key=lambda x: parse_datetime(x['Onset']))
 
 def write_combined_csv(events, output_file):

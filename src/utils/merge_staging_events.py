@@ -6,7 +6,11 @@ import glob
 
 def parse_markers_file(awv_id):
     """Extract start time from markers file"""
-    markers_path = f"../data_all/{awv_id}/ES/Markers.txt"
+    markers_path = f"data_all/{awv_id}/ES/Markers.txt"
+    
+    if not os.path.exists(markers_path):
+        print(f"Markers file not found for {awv_id}. Skipping...")
+        return None
     
     with open(markers_path, 'r') as f:
         for line in f:
@@ -48,10 +52,10 @@ def combine_staging_and_events(awv_id):
     # Sort by onset time
     combined_df = combined_df.sort_values('Onset')
     
-    # Save the result
+    # Save the result as a comma-delimited file
     output_path = f'output/merged/{awv_id}_merged.csv'
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    combined_df.to_csv(output_path, sep='\t', index=False)
+    combined_df.to_csv(output_path, sep=',', index=False)
     
 def main():
     # Find all combined event files
