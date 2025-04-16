@@ -300,6 +300,6 @@ def time_only(dt):
     return dt.time()
 
 # Usage
-data_path = '../../data_all'
-output_dir = '../../output/arousal_reconciliation_output'
+data_path = 'data_all'
+output_dir = 'output/arousal_reconciliation_output'
 processed_files, failed_studies = process_all_studies(data_path, output_dir)
