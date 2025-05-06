@@ -213,9 +213,9 @@ def reconcile_study(study_path, output_dir):
                         else:
                             one_tech_period_after.append((bin_time, bin_time))
 
-            # Add events for periods longer than 5 seconds
+            # Add events for periods longer than 10 seconds
             for period in [one_tech_period_before, one_tech_period_after]:
-                if period and len(period) > 5:  # More than 5 seconds
+                if period and len(period) > 10:  # More than 10 seconds
                     scorer = next(scorer for scorer, score in bin_scores_for_event[period[0][1]].items() if score == 1)
                     description = get_detailed_description({scorer: 'Arousal', **{s: 'No Arousal' for s in scorers if s != scorer}})
                     final_events.append([period[0][0], period[-1][1], description])
