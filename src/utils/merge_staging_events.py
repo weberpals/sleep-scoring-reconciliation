@@ -9,8 +9,11 @@ def parse_markers_file(awv_id):
     markers_path = f"data_all/{awv_id}/ES/Markers.txt"
     
     if not os.path.exists(markers_path):
-        print(f"Markers file not found for {awv_id}. Skipping...")
-        return None
+        # try in other folder 
+        markers_path = f"data_all/{awv_id}/MS/Markers.txt"
+        if not os.path.exists(markers_path):
+            print(f"Markers file not found for {awv_id}. Skipping...")
+            return None
     
     with open(markers_path, 'r') as f:
         for line in f:
