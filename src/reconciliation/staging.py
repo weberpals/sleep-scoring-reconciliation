@@ -79,6 +79,7 @@ def process_all_files(data_dir, output_dir):
     results = []
     
     for study_folder in os.listdir(data_dir):
+        print(f"Processing {study_folder}")
         study_path = os.path.join(data_dir, study_folder)
         if os.path.isdir(study_path):
             for filename in os.listdir(study_path):
@@ -90,6 +91,10 @@ def process_all_files(data_dir, output_dir):
                         print(f"Processed {filename}")
                     except Exception as e:
                         print(f"Error processing {filename}: {str(e)}")
+                else:
+                    print(f"Skipping {filename}")
+        else:
+            print(f"Skipping {study_folder}")
     
     return results
 
@@ -134,8 +139,8 @@ def print_results(results):
         print(f"75th percentile: {percentages[q3_idx]:.2f}%")
 
 # Usage
-data_dir = '../../../data_all'  
-output_dir = '../../output/staging_annotation'  
+data_dir = 'data_all'  
+output_dir = 'output/staging_annotation'  
 
 results = process_all_files(data_dir, output_dir)
 print_results(results)
