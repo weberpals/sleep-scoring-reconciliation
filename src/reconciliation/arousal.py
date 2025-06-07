@@ -149,15 +149,9 @@ def reconcile_study(study_path, output_dir):
         # Find the start and end of the period scored by at least two techs
         start_two_techs = None
         end_two_techs = None
-        scored_by_all = False
         exact_start = None
         for bin_time, scores in bin_scores_for_event.items():
-            # if bin time 2019-08-06T01:44:28.160 print marker
-            if bin_time == datetime(2019, 8, 6, 1, 44, 28):
-                print("marker")
             if sum(scores.values()) >= 2:
-                if sum(scores.values()) == 3:
-                    scored_by_all = True
                 if start_two_techs is None:
                     start_two_techs = bin_time
                     # Find the earliest exact start time from original events
@@ -165,7 +159,7 @@ def reconcile_study(study_path, output_dir):
                                       for event in events if event[0].replace(microsecond=0) == bin_time)
                 end_two_techs = bin_time
         
-        if start_two_techs and end_two_techs and scored_by_all:
+        if start_two_techs and end_two_techs:
             # Find the exact start and end times
             exact_start = min((event[0] for scorer, events in all_events.items() 
                                for event in events if event[0].replace(microsecond=0) == start_two_techs),

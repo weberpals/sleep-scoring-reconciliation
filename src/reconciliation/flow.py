@@ -166,7 +166,7 @@ def reconcile_study(study_path, output_dir):
                                       default=bin_time)
                 end_two_techs = bin_time
         
-        if start_two_techs and end_two_techs and scored_by_all:
+        if start_two_techs and end_two_techs:
             # Find the exact end time
             end_events = [event[1] for scorer, events in all_events.items() 
                           for event in events if event[1].replace(microsecond=0) == end_two_techs]
