@@ -115,7 +115,7 @@ def analyze_reconciliation_files():
             plt.title(f'{data_type}: Auto-reconciliation by Race')
             
             plt.tight_layout()
-            plt.savefig(f'{data_type.lower()}_reconciliation_analysis.png')
+            plt.savefig(f'{data_type.lower()}_reconciliation_analysis_new.png')
             plt.close()
             
             # Statistical analysis

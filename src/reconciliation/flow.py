@@ -166,7 +166,7 @@ def reconcile_study(study_path, output_dir):
                                       default=bin_time)
                 end_two_techs = bin_time
         
-        if start_two_techs and end_two_techs and scored_by_all:
+        if start_two_techs and end_two_techs:
             # Find the exact end time
             end_events = [event[1] for scorer, events in all_events.items() 
                           for event in events if event[1].replace(microsecond=0) == end_two_techs]
@@ -211,9 +211,9 @@ def reconcile_study(study_path, output_dir):
                         else:
                             one_tech_period_after.append((bin_time, bin_time))
 
-            # Add events for periods longer than 5 seconds
+            # Add events for periods longer than 10 seconds
             for period in [one_tech_period_before, one_tech_period_after]:
-                if period and len(period) > 5:  # More than 5 seconds
+                if period and len(period) > 10:  # More than 10 seconds
                     scores = bin_scores_for_event[period[0][1]]
                     description = get_detailed_description({scorer: scores[scorer]['event_type'] if scores[scorer]['score'] == 1 else None for scorer in scorers})
                     final_events.append([period[0][0], period[-1][1], description])
